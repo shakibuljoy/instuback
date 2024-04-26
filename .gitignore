@@ -1,0 +1,8 @@
+#
+venv
+*.env
+*.sqlite3
+*.pyc
+*.log
+#
+
