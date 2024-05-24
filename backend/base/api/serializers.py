@@ -7,6 +7,7 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Add custom claims
         token['name'] = user.username
+        token['type'] = user.user_type
         # ...
-
+        print(user.user_type)
         return token
