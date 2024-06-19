@@ -1,4 +1,5 @@
 #
+backend/media
 venv
 *.env
 *.sqlite3

@@ -25,6 +25,7 @@ def user_registration(request):
             institute = request.user.institute
             
             data['institute'] = institute.pk
+            data['username'] = institute.instu_id+"_"+data['username']
             serializers = CustomUserSerializer(data=data)
             try:
                 serializers.is_valid(raise_exception=True)

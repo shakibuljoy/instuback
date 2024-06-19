@@ -23,7 +23,7 @@ class Institute(models.Model):
         help_text='Required. 150 characters of fewer. Letters, digits only',
         validators=[UnicodeUsernameValidator],
         error_messages={
-            'unique': "A user with that username already exists."
+            'unique': "A institute with this ID already exists."
         }
         )
     
@@ -48,6 +48,7 @@ class CustomUserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
+    
     
     def create_superuser(self, username, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)

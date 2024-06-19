@@ -11,7 +11,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserModel
-        fields = ( "id", "username", "password", "email", "user_type", "first_name", "last_name", "institute")
+        fields = ( "id", "username", "password", "email", "user_type", "first_name", "last_name", "institute", "profile_pic")
 
         password = serializers.CharField(write_only=True)
 
@@ -24,7 +24,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name'],
             email=validated_data['email'],
             user_type=validated_data['user_type'],
-            institute=validated_data['institute']
+            institute=validated_data.get('institute'),
+            profile_pic=validated_data.get('profile_pic')
         )
 
         return user

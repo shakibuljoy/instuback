@@ -49,7 +49,7 @@ REST_FRAMEWORK = {
 AUTH_USER_MODEL = 'users.CustomUser'
 
 SIMPLE_JWT = {
-    "TOKEN_OBTAIN_SERIALIZER": "base.api.serializers.MyTokenObtainPairSerializer",
+    "TOKEN_OBTAIN_SERIALIZER": "base.api.serializers.TokenObtainPairSerializer",
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=9),
     'ROTATE_REFRESH_TOKENS': True,
