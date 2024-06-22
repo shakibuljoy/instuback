@@ -8,8 +8,17 @@ class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        instu_id = request.data.get('instu_id')
         username = request.data.get('username')
+        try:
+            user = CustomUser.objects.get(username=username)
+            if user.user_type == 'developer':
+                return super().post(request, *args, **kwargs)
+        except CustomUser.DoesNotExist:
+            return Response({"detail": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        instu_id = request.data.get('instu_id')
+        
+        
 
         if not instu_id or not username:
             return Response({"detail": "Institute ID and username are required."}, status=status.HTTP_400_BAD_REQUEST)
