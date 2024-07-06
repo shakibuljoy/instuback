@@ -6,7 +6,7 @@ from .views import (
     verify_user,
     StudentView,
     student_image_view,
-    StudentImageView
+    klass_view
 )
 from base.api.views import MyTokenObtainPairView
 from users.views import user_registration
@@ -23,5 +23,6 @@ urlpatterns = [
     path('verify-user/', verify_user, name="verify-user"),
     path('register/', user_registration, name='user_register'),
     path('',include(router.urls), name='student'),
-    path('retrieve_student_image/<pk>/',student_image_view, name="retrieve_student_image")
+    path('retrieve_student_image/<pk>/',student_image_view, name="retrieve_student_image"),
+    path('klasses', klass_view, name="klass_view")
 ]
