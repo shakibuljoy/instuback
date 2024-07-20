@@ -5,8 +5,8 @@ from .permissions import IsNotAStudent
 from rest_framework.response import Response
 from rest_framework import viewsets
 from rest_framework import status
-from .models import Student, Klass
-from .serializers import StudentSerializer, KlassSerializer
+from .models import Student, Klass, Attendence
+from .serializers import StudentSerializer, KlassSerializer, AttendenceSerializer
 import mimetypes
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -16,6 +16,8 @@ from users.models import CustomUser, Institute
 from copy import deepcopy
 from rest_framework.parsers import MultiPartParser, FormParser
 
+import datetime
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -23,12 +25,27 @@ def verify_user(request):
     return Response({'name': request.user.username, 'user_type': request.user.user_type})
 
 class StudentView(viewsets.ModelViewSet):
+    
     permission_classes =[IsNotAStudent]
     serializer_class = StudentSerializer
     parser_classes = [MultiPartParser, FormParser]
     def get_queryset(self):
-        user_institute = self.request.user.institute
-        return Student.objects.filter(institute=user_institute)
+        user = self.request.user
+        klass_id = self.request.GET.get('klass')
+        if klass_id:
+            try:
+                klass_filter = Klass.objects.get(pk=klass_id)
+                user_institute = user.institute
+                if(user.user_type=='administrator'):
+                    return Student.objects.filter(institute=user_institute, klass=klass_filter)
+                return Student.objects.filter(institute=user_institute, klass=klass_filter).filter(klass__teachers=user)
+            except Klass.DoesNotExist:
+                return Response({'detail':'Class not found'}, status=status.HTTP_404_NOT_FOUND)
+        elif not klass_id:
+            user_institute = user.institute
+            if(user.user_type=='administrator'):
+                return Student.objects.filter(institute=user_institute)
+            return Student.objects.filter(institute=user_institute, klass__teachers=user)
     
     def create(self, request, *args, **kwargs):
         data = deepcopy(request.data)
@@ -51,6 +68,7 @@ class StudentView(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
         else:
             return Response({'detail':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
 
 @api_view(['GET'])
 def student_image_view(request, pk):
@@ -92,9 +110,11 @@ def student_image_view(request, pk):
 def klass_view(request):
     if request.method == 'GET':
         user = request.user
-        if user.user_type and user.user_type != "developer":
+        if user.user_type != "teacher":
             klasses = Klass.objects.filter(institute=user.institute)
-        else:
+        elif user.user_type == 'teacher':
+            klasses = Klass.objects.filter(teachers=user)
+        elif user.user_type == 'developer':
             klasses = Klass.objects.all()
         serializers = KlassSerializer(klasses, many=True)
         return Response(serializers.data, status=status.HTTP_200_OK)
@@ -103,3 +123,37 @@ def klass_view(request):
         pass
 
     return Response({'detail': 'Something went wrong!'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsNotAStudent])
+def attendence(request, pk):
+    try:
+        klass = Klass.objects.get(pk=pk)
+        if request.user in klass.teachers.all() or (request.user.user_type == 'administrator' and klass.institute==request.user.institute):
+            if request.method == 'POST':
+                data = deepcopy(request.data)
+                data['teacher'] = request.user.pk
+                # try:
+                #     data['student'] = Student.objects.get(pk=data['student'])
+                # except Student.DoesNotExist:
+                #     return Response({'detail':'Student Not Found'}, status=status.HTTP_404_NOT_FOUND)
+                
+                serializer = AttendenceSerializer(data=data)
+
+                if serializer.is_valid(raise_exception=True):
+                    serializer.save()
+                    today = datetime.date.today()
+                    all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
+                    all_serializer = AttendenceSerializer(all_attendence_today, many=True)
+                    return Response(all_serializer.data, status=status.HTTP_201_CREATED)
+            if request.method == 'GET':
+                today = datetime.date.today()
+                all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
+                all_serializer = AttendenceSerializer(all_attendence_today, many=True)
+                return Response(all_serializer.data, status=status.HTTP_200_OK)
+        else:
+            
+            return Response({'detail': 'User not allowed to this class'}, status=status.HTTP_401_UNAUTHORIZED)
+    except Klass.DoesNotExist:
+        return Response({'detail': "Class not Found!"}, status=status.HTTP_400_BAD_REQUEST)
+    return Response({'detail': "Data not valid"}, status=status.HTTP_400_BAD_REQUEST)

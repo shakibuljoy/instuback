@@ -19,6 +19,7 @@ class Student(models.Model):
     
 
     student_id = models.CharField(max_length=120)
+    admission_date = models.DateField(auto_now_add=True)
     klass = models.ForeignKey(Klass, on_delete=models.PROTECT, verbose_name="Class")
     position = models.IntegerField(blank=True, null=True)
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
@@ -44,4 +45,20 @@ class StudentDocument(models.Model):
     document_title = models.CharField(max_length=120)
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     image = models.ImageField(upload_to=folder_convention)
+
+
+
+class Attendence(models.Model):
+    date = models.DateField(auto_now_add=True, editable=False)
+    teacher = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    klass = models.ForeignKey(Klass, on_delete=models.CASCADE)
+    presents = models.BooleanField()
+    cause = models.CharField(max_length=220, null=True, blank=True)
+
+    class Meta:
+        unique_together = ['date', 'student', 'klass']
+
+    def __str__(self):
+        return f"{self.klass}-{self.student.student_id} ({self.date})"
 
