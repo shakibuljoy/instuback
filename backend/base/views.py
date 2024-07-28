@@ -124,6 +124,7 @@ def klass_view(request):
 
     return Response({'detail': 'Something went wrong!'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST', 'GET'])
 @permission_classes([IsNotAStudent])
 def attendence(request, pk):
@@ -133,10 +134,6 @@ def attendence(request, pk):
             if request.method == 'POST':
                 data = deepcopy(request.data)
                 data['teacher'] = request.user.pk
-                # try:
-                #     data['student'] = Student.objects.get(pk=data['student'])
-                # except Student.DoesNotExist:
-                #     return Response({'detail':'Student Not Found'}, status=status.HTTP_404_NOT_FOUND)
                 
                 serializer = AttendenceSerializer(data=data)
 
@@ -146,14 +143,37 @@ def attendence(request, pk):
                     all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
                     all_serializer = AttendenceSerializer(all_attendence_today, many=True)
                     return Response(all_serializer.data, status=status.HTTP_201_CREATED)
+            # Get method will response all attendence data for specific class and teacher
             if request.method == 'GET':
                 today = datetime.date.today()
+                if request.GET.get('date'):
+                    today = request.GET.get('date')
+                    print("Today", today)
                 all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
                 all_serializer = AttendenceSerializer(all_attendence_today, many=True)
                 return Response(all_serializer.data, status=status.HTTP_200_OK)
         else:
-            
+            # If user is not listed in requested class teacher it will declined
             return Response({'detail': 'User not allowed to this class'}, status=status.HTTP_401_UNAUTHORIZED)
     except Klass.DoesNotExist:
         return Response({'detail': "Class not Found!"}, status=status.HTTP_400_BAD_REQUEST)
     return Response({'detail': "Data not valid"}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['PATCH','GET'])
+@permission_classes([IsNotAStudent])
+def editAttendece(request, pk):
+    try:
+        attendence = Attendence.objects.get(pk=pk)
+        if request.method == 'PATCH':
+            if attendence.teacher == request.user or request.user.user_type == 'administrator':
+                attendence.presents = True if request.data.get('presents') == 'true' else False
+                attendence.cause = request.data['cause'] if request.data.get('cause') else ""
+                attendence.save()
+                serializer = AttendenceSerializer(attendence)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        elif  request.method == 'GET':
+            serializer = AttendenceSerializer(attendence)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    except Attendence.DoesNotExist:
+            return Response({'detail': 'Data no found'}, status=status.HTTP_404_NOT_FOUND)
