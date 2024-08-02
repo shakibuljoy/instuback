@@ -177,3 +177,29 @@ def editAttendece(request, pk):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Attendence.DoesNotExist:
             return Response({'detail': 'Data no found'}, status=status.HTTP_404_NOT_FOUND)
+    
+@api_view(['GET'])
+@permission_classes([IsNotAStudent])
+def get_student_attendence(request, pk):
+    month = request.GET.get('month')
+    year = request.GET.get('year')
+    if month and year:
+        try:
+            student = Student.objects.get(pk=pk)
+            user = request.user
+            if user in student.klass.teachers.all() or (user.user_type == 'administrator' and student.institute==user.institute):
+                all_attendence = Attendence.objects.filter(
+                    student=student,
+                    date__month=month,
+                    date__year=year
+                )
+                serializer = AttendenceSerializer(all_attendence, many=True)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        except Student.DoesNotExist:
+            return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'detail': 'Specify month & year'}, status=status.HTTP_400_BAD_REQUEST)
+
+        

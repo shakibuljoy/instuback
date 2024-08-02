@@ -9,6 +9,7 @@ from .views import (
     klass_view,
     attendence,
     editAttendece,
+    get_student_attendence,
 )
 from base.api.views import MyTokenObtainPairView
 from users.views import user_registration
@@ -29,4 +30,5 @@ urlpatterns = [
     path('klasses', klass_view, name="klass_view"),
     path('attendence/<pk>/', attendence, name='attendence'),
     path('edit-attendence/<pk>/', editAttendece, name='edit-attendence'),
+    path('student-attendance/<pk>/', get_student_attendence, name='student-attendance'),
 ]
