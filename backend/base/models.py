@@ -61,4 +61,11 @@ class Attendence(models.Model):
 
     def __str__(self):
         return f"{self.klass}-{self.student.student_id} ({self.date})"
+    
+
+
+
+
+
+
 
