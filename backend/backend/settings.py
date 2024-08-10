@@ -51,11 +51,11 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 SIMPLE_JWT = {
     "TOKEN_OBTAIN_SERIALIZER": "base.api.serializers.TokenObtainPairSerializer",
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=9),
-    'ROTATE_REFRESH_TOKENS': True,
+    'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': False,
+    'UPDATE_LAST_LOGIN': True,
 
     'ALGORITHM': 'HS256',
     'VERIFYING_KEY': None,

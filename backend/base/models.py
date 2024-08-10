@@ -11,7 +11,22 @@ class Klass(models.Model):
     def __str__(self):
         return f"{self.name}{"-"+ self.group if self.group else ""}{"-"+self.branch if self.branch else ""}"
 
+class AdditionalStudentField(models.Model):
+    institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
+    title = models.CharField(max_length=250)
 
+    class Meta:
+        unique_together = ['institute', 'title']
+
+    def __str__(self):
+        return f"{self.institute.instu_id}-{self.title}"
+
+
+GENDER_CHOICES = (
+    ('Male', 'male'),
+    ('Female', 'female'),
+    ('Third-Gender', 'third-gender')
+)
 
 class Student(models.Model):
     def folder_convention(instance, filename):
@@ -25,6 +40,7 @@ class Student(models.Model):
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
     first_name = models.CharField(max_length=120)
     last_name = models.CharField(max_length=120, null=True, blank=True)
+    gender = models.CharField(max_length=50,choices=GENDER_CHOICES, default='male')
     mobile = models.CharField(max_length=50)
     mothers_name = models.CharField(max_length=120)
     fathers_name = models.CharField(max_length=120)
@@ -36,6 +52,18 @@ class Student(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name if self.last_name else ""} ({self.student_id})"
+    
+
+class AdditionalStudentInfo(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    field = models.ForeignKey(AdditionalStudentField, on_delete=models.CASCADE)
+    value = models.CharField(max_length=512)
+
+    def __str__(self):
+        return f"{self.student.student_id}-{self.field.title}"
+    
+    class Meta:
+        unique_together = ['student', 'field']
 
 class StudentDocument(models.Model):
     def folder_convention(instance, filename):

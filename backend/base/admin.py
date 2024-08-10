@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Klass, Student,StudentDocument, Attendence
+from .models import (Klass, Student,StudentDocument,
+                    Attendence, AdditionalStudentInfo)
+
+class AdStInfoInline(admin.TabularInline):
+    model = AdditionalStudentInfo
+    extra =1 
 
 class StudentDocumentInline(admin.TabularInline):
     model = StudentDocument
@@ -10,12 +15,13 @@ class AttendenceInline(admin.TabularInline):
     model = Attendence
     extra = 1
 
+
 class StudentAdmin(admin.ModelAdmin):
-    inlines = [StudentDocumentInline, AttendenceInline]
+    inlines = [StudentDocumentInline, AdStInfoInline, AttendenceInline]
 
 
 
-admin.site.register(Student, StudentAdmin)    
+admin.site.register(Student, StudentAdmin)
 admin.site.register(Klass)
 admin.site.register(Attendence)
 
