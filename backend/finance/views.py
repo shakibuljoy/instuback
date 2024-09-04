@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework import viewsets
@@ -46,16 +46,51 @@ class BillViewSet(viewsets.ModelViewSet):
 
 class PaymentViewSet(viewsets.ModelViewSet):
     permission_classes =[IsAdministrator]
-    queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
 
     def get_queryset(self):
         queryset = Payment.objects.filter(bills__fee__fee__institute=self.request.user.institute)
         return queryset
+    
+    def retrieve(self, request, *args, **kwargs):
+        # Get the payment by primary key
+        payment = get_object_or_404(Payment, pk=kwargs['pk'])
+        
+        if payment.bills.filter(fee__fee__institute=self.request.user.institute).exists():
+            serializer = self.get_serializer(payment)
+            return Response(serializer.data)
+        else:
+            return Response({'detail': 'Payment not found or unauthorized'}, status=status.HTTP_404_NOT_FOUND)
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Custom validation and logic before saving
         bills = serializer.validated_data['bills']
+        is_paid_amount = serializer.validated_data.get('paid_amount')
+        total_amount = 0
+
         for bill in bills:
+            print("Inster", bill.paid)
+            total_amount += bill.get_payable_amount()
+            
             if bill.student.institute != self.request.user.institute:
-                return Response({'detail':'Unauthorized action!'}, status=status.HTTP_401_UNAUTHORIZED)
-        super().perform_create(serializer)
+                return Response({'detail': 'Unauthorized action!'}, status=status.HTTP_401_UNAUTHORIZED)
+            
+            if bill.paid:
+                print("Insertedddd")
+                return Response({'detail': "Paid bill is not payable"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        if is_paid_amount:
+            paid_amount = serializer.validated_data['paid_amount']
+            if paid_amount > 0 and paid_amount < total_amount:
+                serializer.validated_data['status'] = 'hold'
+        else:
+            serializer.validated_data['status'] = 'failed'
+
+        # If everything is fine, proceed with the object creation
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+

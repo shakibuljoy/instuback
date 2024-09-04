@@ -21,4 +21,4 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = ['id', 'trx_id', 'bill_ids', 'status','paid_amount', 'get_total_amount']
+        fields = ['id', 'trx_id', 'bill_ids', 'status','paid_amount', 'get_total_amount', 'mode']

@@ -58,7 +58,7 @@ PAYMENT_CHOICES = (
 )
 
 class Payment(models.Model):
-    trx_id = models.CharField(max_length=32, unique=True, verbose_name='Transaction ID', blank=True, default='')
+    trx_id = models.CharField(max_length=32, unique=True, verbose_name='Transaction ID', blank=True, default='', editable=False)
     bills = models.ManyToManyField(Bill, related_name='bill')
     mode = models.CharField(max_length=50, choices=(('cash', 'Cash'),('online', 'Online')))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -119,5 +119,16 @@ def create_bills_for_new_student(sender, instance, created, **kwargs):
 
         for fee in fees:
             Bill.objects.create(student=instance, fee=fee, due_date=due_date_calucalator(fee.fee.due_type))
+
+
+@receiver(post_save, sender=Payment)
+def check_is_bill_paid(sender, instance, created, **kwargs):
+    if instance.status == 'success':
+        for bill in instance.bills.all():
+            bill.paid = True
+            print(bill.)
+            bill.save()
+
+        
 
 
