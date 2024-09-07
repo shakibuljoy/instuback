@@ -64,33 +64,30 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if serializer.is_valid(raise_exception=True):
 
-        # Custom validation and logic before saving
-        bills = serializer.validated_data['bills']
-        is_paid_amount = serializer.validated_data.get('paid_amount')
-        total_amount = 0
+            # Custom validation and logic before saving
+            bills = serializer.validated_data['bills']
+            is_paid_amount = serializer.validated_data.get('paid_amount')
+            total_amount = 0
 
-        for bill in bills:
-            print("Inster", bill.paid)
-            total_amount += bill.get_payable_amount()
-            
-            if bill.student.institute != self.request.user.institute:
-                return Response({'detail': 'Unauthorized action!'}, status=status.HTTP_401_UNAUTHORIZED)
-            
-            if bill.paid:
-                print("Insertedddd")
-                return Response({'detail': "Paid bill is not payable"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+            for bill in bills:
+                total_amount += bill.get_payable_amount()
+                
+                if bill.student.institute != self.request.user.institute:
+                    return Response({'detail': 'Unauthorized action!'}, status=status.HTTP_401_UNAUTHORIZED)
+                
+                if bill.paid:
+                    return Response({'detail': "Paid bill is not payable"}, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-        if is_paid_amount:
-            paid_amount = serializer.validated_data['paid_amount']
-            if paid_amount > 0 and paid_amount < total_amount:
-                serializer.validated_data['status'] = 'hold'
-        else:
-            serializer.validated_data['status'] = 'failed'
-
-        # If everything is fine, proceed with the object creation
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            if is_paid_amount:
+                paid_amount = serializer.validated_data['paid_amount']
+                if paid_amount > 0 and paid_amount < total_amount:
+                    serializer.validated_data['status'] = 'hold'
+            else:
+                serializer.validated_data['status'] = 'failed'
+            # If everything is fine, proceed with the object creation
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 

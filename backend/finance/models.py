@@ -1,7 +1,7 @@
 from django.db import models
 from base.models import Student, Institute
 import uuid
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from .utils import due_date_calucalator
 
@@ -59,7 +59,7 @@ PAYMENT_CHOICES = (
 
 class Payment(models.Model):
     trx_id = models.CharField(max_length=32, unique=True, verbose_name='Transaction ID', blank=True, default='', editable=False)
-    bills = models.ManyToManyField(Bill, related_name='bill')
+    bills = models.ManyToManyField(Bill, related_name='payments')
     mode = models.CharField(max_length=50, choices=(('cash', 'Cash'),('online', 'Online')))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=30, choices=PAYMENT_CHOICES)
@@ -121,14 +121,35 @@ def create_bills_for_new_student(sender, instance, created, **kwargs):
             Bill.objects.create(student=instance, fee=fee, due_date=due_date_calucalator(fee.fee.due_type))
 
 
-@receiver(post_save, sender=Payment)
-def check_is_bill_paid(sender, instance, created, **kwargs):
-    if instance.status == 'success':
-        for bill in instance.bills.all():
-            bill.paid = True
-            print(bill.)
-            bill.save()
+@receiver(m2m_changed, sender=Payment.bills.through)
+def check_is_bill_paid(sender, instance, action,**kwargs):
+    if action == 'post_add':
+        print(" M@M Signal is triggered")
+        if instance.status == 'success':
+            print("Signal is triggered in Success", instance)
+            
+            for bill in instance.bills.all():
+                print("Signal is triggered in Success in For loop", instance)
+                
+                bill.paid = True
+                print("from signal",bill.paid)
+                bill.save()
 
+
+@receiver(post_save, sender=Payment)
+def check_is_bill_paid(sender, instance, created,**kwargs):
+    if not created:
+        print(" Post Signal is triggered")
+        if instance.status == 'success':
+            print("Signal is triggered in Success", instance)
+            payment_instance = Payment.objects.get(pk=instance.id)
+            print(payment_instance)
+            for bill in payment_instance.bills.all():
+                print("Signal is triggered in Success in For loop", payment_instance)
+                
+                bill.paid = True
+                print("from signal",bill.paid)
+                bill.save()
         
 
 

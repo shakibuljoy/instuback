@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Fee, Bill, Payment
+from rest_framework.exceptions import ValidationError
 
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -16,9 +17,9 @@ class BillSerializer(serializers.ModelSerializer):
         fields = ['id', 'student', 'student_name', 'fee', 'fee_title', 'fee_amount', 'paid', 'due_date', 'discount', 'get_payable_amount']
 
 class PaymentSerializer(serializers.ModelSerializer):
-    bill_ids = serializers.PrimaryKeyRelatedField(many=True, queryset=Bill.objects.all(), source='bills')
+    bill_ids= serializers.PrimaryKeyRelatedField(many=True,queryset=Bill.objects.all(), source='bills')
     
 
     class Meta:
         model = Payment
-        fields = ['id', 'trx_id', 'bill_ids', 'status','paid_amount', 'get_total_amount', 'mode']
+        fields = ['id', 'trx_id','bill_ids', 'status','paid_amount', 'get_total_amount', 'mode']
