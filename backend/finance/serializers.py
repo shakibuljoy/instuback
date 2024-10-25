@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Fee, Bill, Payment
 from rest_framework.exceptions import ValidationError
+from base.serializers import StudentSerializer
 
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -8,13 +9,28 @@ class FeeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class BillSerializer(serializers.ModelSerializer):
-    student_name = serializers.CharField(source='student.first_name', read_only=True)
     fee_title = serializers.CharField(source='fee.fee.title', read_only=True)
     fee_amount = serializers.DecimalField(source='fee.amount', max_digits=12, decimal_places=2, read_only=True)
+    trx = serializers.SerializerMethodField()
 
     class Meta:
         model = Bill
-        fields = ['id', 'student', 'student_name', 'fee', 'fee_title', 'fee_amount', 'paid', 'due_date', 'discount', 'get_payable_amount']
+        fields = ['id', 'student', 'fee', 'fee_title', 'fee_amount', 'paid', 'due_date', 'discount', 'get_payable_amount', 'trx']
+
+    def get_trx(self, value):
+        return
+    
+    def to_representation(self, instance):
+        represents =  super().to_representation(instance)
+        try:
+            payment = Payment.objects.get(bills=instance)
+            represents['trx'] = payment.trx_id
+        except Payment.DoesNotExist:
+            instance.paid = False
+            instance.save()
+            represents['trx'] = ''
+        return represents
+
 
 class PaymentSerializer(serializers.ModelSerializer):
     bill_ids= serializers.PrimaryKeyRelatedField(many=True,queryset=Bill.objects.all(), source='bills')
@@ -22,4 +38,4 @@ class PaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Payment
-        fields = ['id', 'trx_id','bill_ids', 'status','paid_amount', 'get_total_amount', 'mode']
+        fields = ['id', 'trx_id','bill_ids', 'status','paid_amount', 'get_total_amount', 'mode', 'created_at','created_by', 'updated_by']

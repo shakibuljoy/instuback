@@ -47,13 +47,13 @@ class Migration(migrations.Migration):
                 ('klass', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='base.klass', verbose_name='Class')),
             ],
         ),
-        migrations.CreateModel(
-            name='StudentDocument',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('document_title', models.CharField(max_length=120)),
-                ('image', models.ImageField(upload_to=base.models.StudentDocument.folder_convention)),
-                ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='base.student')),
-            ],
-        ),
+        # migrations.CreateModel(
+        #     name='StudentDocument',
+        #     fields=[
+        #         ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+        #         ('document_title', models.CharField(max_length=120)),
+        #         ('image', models.ImageField(upload_to=base.models.StudentDocument.folder_convention)),
+        #         ('student', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='base.student')),
+        #     ],
+        # ),
     ]

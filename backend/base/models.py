@@ -1,3 +1,4 @@
+from typing import Iterable
 from django.db import models
 from users.models import CustomUser, Institute
 
@@ -12,8 +13,16 @@ class Klass(models.Model):
         return f"{self.name}{"-"+ self.group if self.group else ""}{"-"+self.branch if self.branch else ""}"
 
 class AdditionalStudentField(models.Model):
+    FIELD_CHOICES =(
+        ('number', 'Number'),
+        ('text', 'Text'),
+        ('file', 'File')
+    
+    )
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
     title = models.CharField(max_length=250)
+    field_type = models.CharField(max_length=50, choices=FIELD_CHOICES)
+    required = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ['institute', 'title']
@@ -55,24 +64,31 @@ class Student(models.Model):
     
 
 class AdditionalStudentInfo(models.Model):
+    def folder_convention(instance, filename):
+        return f"document/student/{instance.student.id}/{filename}"
+
+
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     field = models.ForeignKey(AdditionalStudentField, on_delete=models.CASCADE)
-    value = models.CharField(max_length=512)
+    value = models.CharField(max_length=512, blank=True, null=True)
+    file = models.ImageField(upload_to=folder_convention, blank=True, null=True)
 
     def __str__(self):
         return f"{self.student.student_id}-{self.field.title}"
     
+    def save(self, *args, **kwargs):
+        if self.field.field_type == 'file' and not self.file:
+            raise ValueError('Please Upload a File')
+        elif self.field.field_type != 'file' and not self.value:
+            raise ValueError('Please filled up the field')
+
+        return super(AdditionalStudentInfo, self).save(*args, **kwargs)
+
+    
+    
     class Meta:
         unique_together = ['student', 'field']
 
-class StudentDocument(models.Model):
-    def folder_convention(instance, filename):
-        return f"document/student/{instance.student.id}/{filename}"
-    
-
-    document_title = models.CharField(max_length=120)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to=folder_convention)
 
 
 

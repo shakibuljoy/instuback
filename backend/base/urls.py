@@ -10,6 +10,8 @@ from .views import (
     attendence,
     editAttendece,
     get_student_attendence,
+    AdditionalStudentFieldView,
+    AdditionalStInfoView
 )
 from base.api.views import MyTokenObtainPairView
 from users.views import user_registration
@@ -17,6 +19,8 @@ from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
 router.register(r'students', StudentView, basename='student')
+router.register(r'add_st_field', AdditionalStudentFieldView, basename='add_st_field')
+router.register(r'add_st_info', AdditionalStInfoView, basename='add_st_info')
 
 app_name = 'base'
 
@@ -30,5 +34,5 @@ urlpatterns = [
     path('klasses', klass_view, name="klass_view"),
     path('attendence/<pk>/', attendence, name='attendence'),
     path('edit-attendence/<pk>/', editAttendece, name='edit-attendence'),
-    path('student-attendance/<pk>/', get_student_attendence, name='student-attendance'),
+    path('student-attendance/<pk>/', get_student_attendence, name='student-attendance')
 ]

@@ -1,14 +1,12 @@
 from django.contrib import admin
-from .models import (Klass, Student,StudentDocument,
+from .models import (Klass, Student,
                     Attendence, AdditionalStudentInfo)
 
 class AdStInfoInline(admin.TabularInline):
     model = AdditionalStudentInfo
     extra =1 
 
-class StudentDocumentInline(admin.TabularInline):
-    model = StudentDocument
-    extra = 1
+
 
 class AttendenceInline(admin.TabularInline):
     readonly_fields = ['date']
@@ -17,7 +15,7 @@ class AttendenceInline(admin.TabularInline):
 
 
 class StudentAdmin(admin.ModelAdmin):
-    inlines = [StudentDocumentInline, AdStInfoInline, AttendenceInline]
+    inlines = [AdStInfoInline, AttendenceInline]
 
 
 

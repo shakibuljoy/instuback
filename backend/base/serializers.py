@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Student,Institute, Klass, Attendence
+from .models import Student,Institute, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo
 from django.db import IntegrityError
 from users.models import CustomUser
 from django.urls import reverse
@@ -59,7 +59,6 @@ class KlassSerializer(serializers.ModelSerializer):
 
 
 class AttendenceSerializer(serializers.ModelSerializer):
-    # student = StudentSerializer() 
     class Meta:
         model = Attendence
         fields = '__all__'
@@ -88,3 +87,28 @@ class AttendenceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"detail": "An attendance record with the same date, student, and class already exists."}
             )
+        
+class AdditionalStFieldSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdditionalStudentField
+        fields = '__all__'
+
+
+    
+class AdditionalStInfoSerializer(serializers.ModelSerializer):
+    title = serializers.SlugRelatedField(slug_field='title',read_only=True, source='field')
+    field_id = serializers.PrimaryKeyRelatedField(many=False, queryset=AdditionalStudentField.objects.all(), source='field')
+    student_id = serializers.PrimaryKeyRelatedField(many=False, queryset=Student.objects.all(), source='student')
+    class Meta:
+        model = AdditionalStudentInfo
+        fields = ['id', 'title', 'field_id', 'value', 'student_id', 'file']
+
+    def validate(self, data):
+        student = data.get('student')
+        field = data.get('field')
+
+        if AdditionalStudentInfo.objects.filter(student=student, field=field).exists():
+            raise serializers.ValidationError(
+                f"An entry for the student {student.student_id} with the field '{field.title}' already exists."
+            )
+        return data

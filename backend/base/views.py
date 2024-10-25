@@ -5,8 +5,8 @@ from .permissions import IsNotAStudent
 from rest_framework.response import Response
 from rest_framework import viewsets
 from rest_framework import status
-from .models import Student, Klass, Attendence
-from .serializers import StudentSerializer, KlassSerializer, AttendenceSerializer
+from .models import Student, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo
+from .serializers import StudentSerializer, KlassSerializer, AttendenceSerializer, AdditionalStFieldSerializer,AdditionalStInfoSerializer
 import mimetypes
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -103,6 +103,68 @@ def student_image_view(request, pk):
             return Response({"detail": "Invalid token"}, status=status.HTTP_401_UNAUTHORIZED)
     else:
         return Response({"detail": "Authorization header missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+class AdditionalStudentFieldView(viewsets.ModelViewSet):
+    permission_classes = [IsNotAStudent]
+    serializer_class = AdditionalStFieldSerializer
+    def get_queryset(self):
+        user = self.request.user
+        return AdditionalStudentField.objects.filter(institute=user.institute)
+    
+    def create(self, request, *args, **kwargs):
+        data = deepcopy(request.data)
+        user_institute = request.user.institute
+        data['institute'] = user_institute.id
+        serializer = self.get_serializer(data=data)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response({'detial':'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
+
+from django.core.files.uploadedfile import InMemoryUploadedFile
+class AdditionalStInfoView(viewsets.ModelViewSet):
+    permission_classes = [IsNotAStudent]
+    serializer_class = AdditionalStInfoSerializer 
+    def get_queryset(self):
+        user = self.request.user
+        return AdditionalStudentInfo.objects.filter(field__institute=user.institute)
+    
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        tem_data = []
+        for i in data:
+            keyNote = str(i).split('_')
+            student_id = keyNote[0]
+            field_id = keyNote[1]
+            value = data[i]
+            if type(value) == str:
+                tem_data.append({
+                    'field_id':field_id,
+                    'student_id': student_id,
+                    'value':value
+                })
+            elif type(value) == InMemoryUploadedFile:
+                tem_data.append({
+                    'field_id':field_id,
+                    'student_id': student_id,
+                    'file':value
+                })
+        # Check if the request contains multiple items (bulk)
+        print('Temp Data', tem_data)
+        if isinstance(tem_data, list):
+            serializer = self.get_serializer(data=tem_data, many=True)
+        else:
+            serializer = self.get_serializer(data=tem_data)
+
+        # Validate and save the data
+        if serializer.is_valid(raise_exception=True):
+            return self.perform_create(serializer)
+
+            
+
+    def perform_create(self, serializer):
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
     
 
 @api_view(['GET', 'POST'])

@@ -4,6 +4,7 @@ import uuid
 from django.db.models.signals import post_save, m2m_changed
 from django.dispatch import receiver
 from .utils import due_date_calucalator
+from django.conf import settings
 
 DUE_TYPE_CHOICES = (
     ('daily', 'Daily'),
@@ -58,11 +59,15 @@ PAYMENT_CHOICES = (
 )
 
 class Payment(models.Model):
-    trx_id = models.CharField(max_length=32, unique=True, verbose_name='Transaction ID', blank=True, default='', editable=False)
+    trx_id = models.CharField(max_length=8, unique=True, verbose_name='Transaction ID', blank=True, default='', editable=False)
     bills = models.ManyToManyField(Bill, related_name='payments')
     mode = models.CharField(max_length=50, choices=(('cash', 'Cash'),('online', 'Online')))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=30, choices=PAYMENT_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='payments_created', on_delete=models.SET_NULL, null=True, blank=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='payments_updated', on_delete=models.SET_NULL, null=True, blank=True)
 
     def get_total_amount(self):
         total_amount = 0
@@ -73,11 +78,15 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         if not self.trx_id:
             self.trx_id = self._generate_unique_trx_id()
+
+        # if not self.pk:
+        #     self.created_by = kwargs.pop('user', None)
+        # self.updated_by = kwargs.pop('user', None)
         super(Payment, self).save(*args, **kwargs)
 
     def _generate_unique_trx_id(self):
         while True:
-            trx_id = uuid.uuid4().hex[:32].upper()
+            trx_id = uuid.uuid4().hex[:8].upper()
             if not Payment.objects.filter(trx_id=trx_id).exists():
                 return trx_id
             
@@ -121,35 +130,23 @@ def create_bills_for_new_student(sender, instance, created, **kwargs):
             Bill.objects.create(student=instance, fee=fee, due_date=due_date_calucalator(fee.fee.due_type))
 
 
-@receiver(m2m_changed, sender=Payment.bills.through)
-def check_is_bill_paid(sender, instance, action,**kwargs):
-    if action == 'post_add':
-        print(" M@M Signal is triggered")
+def check_is_bill_paid(instance):
         if instance.status == 'success':
-            print("Signal is triggered in Success", instance)
-            
             for bill in instance.bills.all():
-                print("Signal is triggered in Success in For loop", instance)
-                
                 bill.paid = True
-                print("from signal",bill.paid)
                 bill.save()
+                
+
+@receiver(m2m_changed, sender=Payment.bills.through)
+def bill_marker_m2m_change(sender, instance, action,**kwargs):
+    if action == 'post_add':
+        check_is_bill_paid(instance)
 
 
 @receiver(post_save, sender=Payment)
-def check_is_bill_paid(sender, instance, created,**kwargs):
+def bill_marker_post_save(sender, instance, created,**kwargs):
     if not created:
-        print(" Post Signal is triggered")
-        if instance.status == 'success':
-            print("Signal is triggered in Success", instance)
-            payment_instance = Payment.objects.get(pk=instance.id)
-            print(payment_instance)
-            for bill in payment_instance.bills.all():
-                print("Signal is triggered in Success in For loop", payment_instance)
-                
-                bill.paid = True
-                print("from signal",bill.paid)
-                bill.save()
+        check_is_bill_paid(instance)
         
 
 

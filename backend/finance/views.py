@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework import viewsets
 from base.permissions import IsAdministrator
 from .models import Bill, Payment, Fee
@@ -30,6 +31,8 @@ class BillViewSet(viewsets.ModelViewSet):
         queryset = Bill.objects.filter(fee__fee__institute=self.request.user.institute)
         return queryset
     
+
+    
     def perform_create(self, serializer):
         student_id = serializer['student']
         try:
@@ -42,7 +45,15 @@ class BillViewSet(viewsets.ModelViewSet):
         except Student.DoesNotExist:
             return Response({'detail':'Student Not Found!'}, status=status.HTTP_404_NOT_FOUND)
 
-        
+
+@api_view(['GET'])
+@permission_classes([IsAdministrator])
+def student_bills(request, pk):
+    student = get_object_or_404(Student, pk=pk)
+    bills = Bill.objects.filter(student=student)
+    serializer = BillSerializer(bills, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class PaymentViewSet(viewsets.ModelViewSet):
     permission_classes =[IsAdministrator]
@@ -65,7 +76,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
-
+            serializer.validated_data['created_by'] = request.user
             # Custom validation and logic before saving
             bills = serializer.validated_data['bills']
             is_paid_amount = serializer.validated_data.get('paid_amount')
@@ -91,3 +102,11 @@ class PaymentViewSet(viewsets.ModelViewSet):
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+@api_view(['GET'])
+@permission_classes([IsAdministrator])
+
+def payment_created_by_user(request):
+    payment_list = Payment.objects.filter(created_by=request.user)
+
+    serializer = PaymentSerializer(payment_list, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
