@@ -1,4 +1,6 @@
+
 from typing import Iterable
+import uuid
 from django.db import models
 from users.models import CustomUser, Institute
 
@@ -8,6 +10,7 @@ class Klass(models.Model):
     group = models.CharField(max_length=50, null=True, blank=True)
     branch = models.CharField(max_length=50, null=True, blank=True)
     teachers = models.ManyToManyField(CustomUser, related_name='teachers',blank=True)
+    result_published = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name}{"-"+ self.group if self.group else ""}{"-"+self.branch if self.branch else ""}"
@@ -42,9 +45,9 @@ class Student(models.Model):
         return f"profile/student/{instance.student_id}/{filename}"
     
 
-    student_id = models.CharField(max_length=120)
+    student_id = models.CharField(max_length=8, unique=True, blank=True, default='', editable=False)
     admission_date = models.DateField(auto_now_add=True)
-    klass = models.ForeignKey(Klass, on_delete=models.PROTECT, verbose_name="Class")
+    klass = models.ForeignKey(Klass, on_delete=models.PROTECT, verbose_name="Class", blank=True, null=True)
     position = models.IntegerField(blank=True, null=True)
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
     first_name = models.CharField(max_length=120)
@@ -58,6 +61,21 @@ class Student(models.Model):
     birth_certificate_no = models.CharField(max_length=220)
     nid_no = models.CharField(max_length=220, null=True, blank=True)
     image = models.ImageField(upload_to=folder_convention, null=False, blank=False)
+    active = models.BooleanField(default=False)
+    admitted = models.BooleanField(default=False)
+
+
+    def _generate_unique_student_id(self):
+        while True:
+            student_id = uuid.uuid4().hex[:8].upper()
+            if not Student.objects.filter(student_id=student_id).exists():
+                return student_id
+            
+    def save(self,*args, **kwargs ):
+        if not self.student_id:
+            self.student_id=self._generate_unique_student_id()
+        super(Student, self).save(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.first_name} {self.last_name if self.last_name else ""} ({self.student_id})"
@@ -105,6 +123,34 @@ class Attendence(models.Model):
 
     def __str__(self):
         return f"{self.klass}-{self.student.student_id} ({self.date})"
+    
+
+class Subject(models.Model):
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=50)
+    klass = models.ForeignKey(Klass, on_delete=models.CASCADE)
+    credit = models.FloatField()
+
+    class Meta:
+        unique_together = ['name', 'klass']
+
+    def __str__(self):
+        return f"{self.name} ({self.klass})"
+    
+
+class Mark(models.Model):
+    student = models.ForeignKey(Student, on_delete=models.CASCADE)
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
+    mark = models.FloatField(blank=True, null=True)
+
+    class Meta:
+        unique_together = ['student', 'subject']
+
+
+    def __str__(self):
+        return f"{self.student.student_id}-{self.subject.name}"
+    
+
     
 
 

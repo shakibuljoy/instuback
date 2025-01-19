@@ -11,7 +11,12 @@ from .views import (
     editAttendece,
     get_student_attendence,
     AdditionalStudentFieldView,
-    AdditionalStInfoView
+    AdditionalStInfoView,
+    student_create,
+    get_subjects,
+    submit_marks,
+    get_marks,
+    migrate_student,
 )
 from base.api.views import MyTokenObtainPairView
 from users.views import user_registration
@@ -34,5 +39,11 @@ urlpatterns = [
     path('klasses', klass_view, name="klass_view"),
     path('attendence/<pk>/', attendence, name='attendence'),
     path('edit-attendence/<pk>/', editAttendece, name='edit-attendence'),
-    path('student-attendance/<pk>/', get_student_attendence, name='student-attendance')
+    path('student-attendance/<pk>/', get_student_attendence, name='student-attendance'),
+    path('student-create/', student_create, name='student-create'),
+
+    path('get-subjects/', get_subjects, name='get-subjects'),
+    path('submit-marks/', submit_marks, name='submit-marks'),
+    path('get-marks/', get_marks, name='get-marks'),
+    path('migrate-student/', migrate_student, name='migrate-student'),
 ]

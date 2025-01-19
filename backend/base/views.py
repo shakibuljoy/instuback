@@ -5,16 +5,20 @@ from .permissions import IsNotAStudent
 from rest_framework.response import Response
 from rest_framework import viewsets
 from rest_framework import status
-from .models import Student, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo
-from .serializers import StudentSerializer, KlassSerializer, AttendenceSerializer, AdditionalStFieldSerializer,AdditionalStInfoSerializer
+from .models import Student, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo, Mark
+from .serializers import (StudentSerializer, KlassSerializer, AttendenceSerializer,
+                           AdditionalStFieldSerializer,AdditionalStInfoSerializer,
+                           MarkSerializer, SubjectSerializer)
 import mimetypes
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 import jwt
 from backend import settings
-from users.models import CustomUser, Institute
+from users.models import CustomUser
 from copy import deepcopy
 from rest_framework.parsers import MultiPartParser, FormParser
+from django.db.models import Sum
+from users.utils import validate_institute
 
 import datetime
 
@@ -24,9 +28,26 @@ import datetime
 def verify_user(request):
     return Response({'name': request.user.username, 'user_type': request.user.user_type})
 
+
+@api_view(['POST'])
+def student_create(request):
+    institute = validate_institute(request)
+    if institute:
+        data = deepcopy(request.data)
+        data['institute'] = institute.instu_id
+    
+        seralizer = StudentSerializer(data=data)
+        if seralizer.is_valid(raise_exception=True):
+            seralizer.save()
+            return Response(seralizer.data, status=status.HTTP_201_CREATED)
+    else:
+        return Response({'detail':'Provide valid institute id'}, status=status.HTTP_404_NOT_FOUND)
+    
+
+
 class StudentView(viewsets.ModelViewSet):
     
-    permission_classes =[IsNotAStudent]
+    # permission_classes =[IsNotAStudent]
     serializer_class = StudentSerializer
     parser_classes = [MultiPartParser, FormParser]
     def get_queryset(self):
@@ -49,25 +70,22 @@ class StudentView(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         data = deepcopy(request.data)
-        user_type = request.user.user_type
+        institute = validate_institute(request)
+        if institute:
 
-        if 'institute' in data and user_type == 'developer':
-            try:
-                institute = Institute.objects.get(instu_id=data['institute'])
-                pass
-            except Institute.DoesNotExist:
-                return Response({'detail': 'Institute not found'}, status=status.HTTP_404_NOT_FOUND)
-        elif user_type != 'developer':
-            data['institute'] = request.user.institute.instu_id
 
-        serializer = self.get_serializer(data=data)
-        if serializer.is_valid(raise_exception=False):
-            print(serializer.errors)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            data['institute'] = institute.instu_id
+
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid(raise_exception=False):
+                print(serializer.errors)
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            else:
+                return Response({'detail':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            return Response({'detail':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail':'Provide valid institute id'}, status=status.HTTP_404_NOT_FOUND)
     
 
 @api_view(['GET'])
@@ -105,29 +123,34 @@ def student_image_view(request, pk):
         return Response({"detail": "Authorization header missing"}, status=status.HTTP_401_UNAUTHORIZED)
 
 class AdditionalStudentFieldView(viewsets.ModelViewSet):
-    permission_classes = [IsNotAStudent]
     serializer_class = AdditionalStFieldSerializer
     def get_queryset(self):
-        user = self.request.user
-        return AdditionalStudentField.objects.filter(institute=user.institute)
+        institute = validate_institute(self.request)
+        if institute:
+            return AdditionalStudentField.objects.filter(institute=institute)
+        else:
+            return []
     
     def create(self, request, *args, **kwargs):
-        data = deepcopy(request.data)
-        user_institute = request.user.institute
-        data['institute'] = user_institute.id
-        serializer = self.get_serializer(data=data)
-        if serializer.is_valid(raise_exception=True):
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if request.user.is_authenticated:
+
+            data = deepcopy(request.data)
+            user_institute = request.user.institute
+            data['institute'] = user_institute.id
+            serializer = self.get_serializer(data=data)
+            if serializer.is_valid(raise_exception=True):
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response({'detial':'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
+
 class AdditionalStInfoView(viewsets.ModelViewSet):
-    permission_classes = [IsNotAStudent]
     serializer_class = AdditionalStInfoSerializer 
     def get_queryset(self):
-        user = self.request.user
-        return AdditionalStudentInfo.objects.filter(field__institute=user.institute)
+        if self.request.user.is_authenticated:
+            user = self.request.user
+            return AdditionalStudentInfo.objects.filter(field__institute=user.institute)
     
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -150,7 +173,6 @@ class AdditionalStInfoView(viewsets.ModelViewSet):
                     'file':value
                 })
         # Check if the request contains multiple items (bulk)
-        print('Temp Data', tem_data)
         if isinstance(tem_data, list):
             serializer = self.get_serializer(data=tem_data, many=True)
         else:
@@ -168,16 +190,17 @@ class AdditionalStInfoView(viewsets.ModelViewSet):
     
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsNotAStudent])
 def klass_view(request):
     if request.method == 'GET':
-        user = request.user
-        if user.user_type != "teacher":
-            klasses = Klass.objects.filter(institute=user.institute)
-        elif user.user_type == 'teacher':
-            klasses = Klass.objects.filter(teachers=user)
-        elif user.user_type == 'developer':
-            klasses = Klass.objects.all()
+        klasses = []
+        institute = validate_institute(request)
+        if institute:
+            klasses = Klass.objects.filter(institute=institute)
+        elif(request.user.is_authenticated):
+            user = request.user
+            if user.user_type == 'developer':
+                klasses = Klass.objects.all()
+            
         serializers = KlassSerializer(klasses, many=True)
         return Response(serializers.data, status=status.HTTP_200_OK)
     
@@ -239,7 +262,9 @@ def editAttendece(request, pk):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
     except Attendence.DoesNotExist:
             return Response({'detail': 'Data no found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
+
+
 @api_view(['GET'])
 @permission_classes([IsNotAStudent])
 def get_student_attendence(request, pk):
@@ -263,5 +288,136 @@ def get_student_attendence(request, pk):
         except Student.DoesNotExist:
             return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
     return Response({'detail': 'Specify month & year'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+@api_view(['GET'])
+def get_subjects(request):
+    klass_id = request.GET.get('klass_id')
+    student_id = request.GET.get('student_id')
+    if klass_id:
+
+        try:
+            klass = Klass.objects.get(pk=klass_id)
+        
+            subjects = klass.subject_set.all()
+            serializer = SubjectSerializer(subjects, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Klass.DoesNotExist:
+            return Response({'detail': 'Class not found!'}, status=status.HTTP_404_NOT_FOUND)
+    elif student_id:
+        try:
+            student = Student.objects.get(pk=student_id)
+            subjects = student.klass.subject_set.all()
+            serializer = SubjectSerializer(subjects, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Student.DoesNotExist:
+            return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
+    return Response({'detail': 'Provide class id or student id'}, status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+@permission_classes([IsNotAStudent])
+def submit_marks(request):
+    data = request.data
+    tem_data = []
+    for i in data:
+        keyNote = str(i).split('_')
+        student_id = keyNote[0]
+        field_id = keyNote[1]
+        value = data[i]
+
+        tem_data.append({
+            'subject': field_id,
+            'student': student_id,
+            'mark': float(value)
+        })
+
+    try:
+        student = Student.objects.get(pk=tem_data[0]['student'])
+
+        if not student.active:
+            return Response({'detail': 'Student not active'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if isinstance(tem_data, list):
+            serializer = MarkSerializer(data=tem_data, many=True)
+        else:
+            serializer = MarkSerializer(data=tem_data)
+        
+        if not serializer.is_valid():
+            # Collect errors for each item in the list
+            error = serializer.errors[0]['non_field_errors'][0].code
+            if error == "unique":
+                return Response({'detail': 'Marks already submitted'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': "Data is not valid"}, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+    except Student.DoesNotExist:
+        return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")  # Debug print
+        return Response({'detail': "Something went wrong", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['GET'])
+def get_marks(request):
+    student_id = request.GET.get('student_id')
+    instu_id = request.GET.get('instu_id')
+    klass_id = request.GET.get('klass_id')
+    if student_id and instu_id and klass_id:
+        try:
+            student = Student.objects.get(student_id=student_id, klass__institute__instu_id=instu_id)
+            klass = Klass.objects.get(pk=klass_id)
+            if klass.result_published:
+                marks = Mark.objects.filter(student=student, subject__klass=klass)
+                if marks.count() == 0:
+                    return Response({'detail': 'No marks found'}, status=status.HTTP_404_NOT_FOUND)
+                serializer = MarkSerializer(marks, many=True)
+                
+                student_data = {
+                    'name': student.first_name+' '+student.last_name,
+                    'student_id': student.student_id,
+                    'class': student.klass.name,
+                    'total_marks': marks.aggregate(Sum('mark'))['mark__sum'] or 0
+                }
+                response_data = {
+                    'student': student_data,
+                    'marks': serializer.data
+                }
+                return Response(response_data, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Result not published yet'}, status=status.HTTP_400_BAD_REQUEST)
+        except Student.DoesNotExist:
+            return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
+        except Klass.DoesNotExist:
+            return Response({'detail': 'Class not found!'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+    return Response({'detail': 'Data not provided properly'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsNotAStudent])
+def migrate_student(request):
+    data = request.data
+    student_id = data.get('student_id')
+    klass_id = data.get('klass_id')
+    if student_id is None or klass_id is None:
+        return Response({'detail': 'Provide Student ID and Class ID'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        student = Student.objects.get(student_id=student_id)
+        klass = Klass.objects.get(pk=klass_id)
+        student.klass = klass
+        student.save()
+        return Response({'detail': f"Student ID: {student_id} migrated to class {str(klass)}"}, status=status.HTTP_200_OK)
+    except Student.DoesNotExist:
+        return Response({'detail': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         

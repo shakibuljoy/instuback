@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from .models import Student,Institute, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo
+from .models import Student,Institute, Klass, Attendence, AdditionalStudentField, AdditionalStudentInfo, Subject, Mark
 from django.db import IntegrityError
-from users.models import CustomUser
 from django.urls import reverse
 from rest_framework.exceptions import ValidationError
 
@@ -110,5 +109,32 @@ class AdditionalStInfoSerializer(serializers.ModelSerializer):
         if AdditionalStudentInfo.objects.filter(student=student, field=field).exists():
             raise serializers.ValidationError(
                 f"An entry for the student {student.student_id} with the field '{field.title}' already exists."
+            )
+        return data
+    
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields = '__all__'
+
+
+class MarkSerializer(serializers.ModelSerializer):
+    subject_code = serializers.CharField(source='subject.code', read_only=True)
+    subject_title = serializers.CharField(source='subject.name', read_only=True)
+    subject_credit = serializers.CharField(source='subject.credit', read_only=True)
+    print("Serializer")
+
+    class Meta:
+        model = Mark
+        fields = '__all__'
+
+        
+    def validate(self, data):
+        student = data.get('student')
+        subject = data.get('subject')
+        if Mark.objects.filter(student=student, subject=subject).exists():
+            raise serializers.ValidationError(
+                f"An entry for the student {student.student_id} with the subject '{subject.name}' already exists."
             )
         return data
