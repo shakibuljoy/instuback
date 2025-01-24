@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Bill, Fee, Payment, FeeVersion
+from .models import Bill, Fee, Payment, FeeVersion, Epayment
 
 class BillAdmin(admin.ModelAdmin):
     list_display = ('student','fee','paid', 'due_date', 'get_payable_amount')
@@ -20,3 +20,4 @@ admin.site.register(Bill,BillAdmin)
 admin.site.register(Fee)
 admin.site.register(Payment, PaymentAdmin)
 admin.site.register(FeeVersion)
+admin.site.register(Epayment)

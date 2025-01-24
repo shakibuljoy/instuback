@@ -47,6 +47,7 @@ class Student(models.Model):
 
     student_id = models.CharField(max_length=8, unique=True, blank=True, default='', editable=False)
     admission_date = models.DateField(auto_now_add=True)
+    email = models.EmailField()
     klass = models.ForeignKey(Klass, on_delete=models.PROTECT, verbose_name="Class", blank=True, null=True)
     position = models.IntegerField(blank=True, null=True)
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE)
@@ -70,6 +71,9 @@ class Student(models.Model):
             student_id = uuid.uuid4().hex[:8].upper()
             if not Student.objects.filter(student_id=student_id).exists():
                 return student_id
+            
+    def full_name(self):
+        return f"{self.first_name} {self.last_name if self.last_name else ''}"
             
     def save(self,*args, **kwargs ):
         if not self.student_id:

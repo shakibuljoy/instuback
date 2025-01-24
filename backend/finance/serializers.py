@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from .models import Fee, Bill, Payment
+from .models import Fee, Bill, Payment, Epayment
 from rest_framework.exceptions import ValidationError
-from base.serializers import StudentSerializer
 
 class FeeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -39,3 +38,9 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = ['id', 'trx_id','bill_ids', 'status','paid_amount', 'get_total_amount', 'mode', 'created_at','created_by', 'updated_by']
+
+
+class EPaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Epayment
+        fields = '__all__'

@@ -64,6 +64,7 @@ class Payment(models.Model):
     mode = models.CharField(max_length=50, choices=(('cash', 'Cash'),('online', 'Online')))
     paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=30, choices=PAYMENT_CHOICES)
+    epayment = models.OneToOneField('Epayment', on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='payments_created', on_delete=models.SET_NULL, null=True, blank=True)
@@ -93,6 +94,49 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.trx_id} - {self.status}"
+    
+
+class Epayment(models.Model):
+    pg_service_charge_bdt = models.CharField(max_length=255, null=True, blank=True)
+    amount_original = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    gateway_fee = models.CharField(max_length=255, null=True, blank=True)
+    pg_service_charge_usd = models.CharField(max_length=255, null=True, blank=True)
+    pg_card_bank_name = models.CharField(max_length=255, null=True, blank=True)
+    pg_card_bank_country = models.CharField(max_length=255, null=True, blank=True)
+    card_number = models.CharField(max_length=255, null=True, blank=True)
+    card_holder = models.CharField(max_length=255, null=True, blank=True)
+    status_code = models.IntegerField()
+    pay_status = models.CharField(max_length=50)
+    success_url = models.URLField(null=True, blank=True)
+    fail_url = models.URLField(null=True, blank=True)
+    cus_name = models.CharField(max_length=255, null=True, blank=True)
+    cus_email = models.EmailField(null=True, blank=True)
+    cus_phone = models.CharField(max_length=255, null=True, blank=True)
+    currency_merchant = models.CharField(max_length=10, null=True, blank=True)
+    convertion_rate = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    other_currency = models.CharField(max_length=255, null=True, blank=True)
+    pg_txnid = models.CharField(max_length=255, null=True, blank=True)
+    epw_txnid = models.CharField(max_length=255, null=True, blank=True)
+    mer_txnid = models.CharField(max_length=255, null=True, blank=True)
+    store_id = models.CharField(max_length=255, null=True, blank=True)
+    merchant_id = models.CharField(max_length=255, null=True, blank=True)
+    currency = models.CharField(max_length=10, null=True, blank=True)
+    store_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    pay_time = models.DateTimeField(null=True, blank=True)
+    amount = models.CharField(max_length=255, null=True, blank=True)
+    bank_txn = models.CharField(max_length=255, null=True, blank=True)
+    card_type = models.CharField(max_length=255, null=True, blank=True)
+    reason = models.CharField(max_length=255, null=True, blank=True)
+    pg_card_risklevel = models.CharField(max_length=2, null=True, blank=True)
+    pg_error_code_details = models.CharField(max_length=255, null=True, blank=True)
+    opt_a = models.CharField(max_length=255, null=True, blank=True)
+    opt_b = models.CharField(max_length=255, null=True, blank=True)
+    opt_c = models.CharField(max_length=255, null=True, blank=True)
+    opt_d = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"Payment {self.pg_txnid} - {self.pay_status}"
 
 @receiver(post_save, sender=Fee)
 def create_bills_for_fee(sender, instance, created, **kwargs):
