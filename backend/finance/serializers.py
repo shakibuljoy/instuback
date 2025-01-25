@@ -21,12 +21,16 @@ class BillSerializer(serializers.ModelSerializer):
     
     def to_representation(self, instance):
         represents =  super().to_representation(instance)
-        try:
-            payment = Payment.objects.get(bills=instance)
-            represents['trx'] = payment.trx_id
-        except Payment.DoesNotExist:
-            instance.paid = False
-            instance.save()
+        if instance.paid:
+            try:
+                payment = Payment.objects.filter(bills=instance, status='success').first()
+                represents['trx'] = payment.trx_id
+                return represents
+            except Payment.DoesNotExist:
+                instance.paid = False
+                instance.save()
+                represents['trx'] = ''
+        else:
             represents['trx'] = ''
         return represents
 

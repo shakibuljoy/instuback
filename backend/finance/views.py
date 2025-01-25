@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 from base.permissions import IsAdministrator
 from .models import Bill, Payment, Fee
 from base.models import Student
@@ -104,9 +105,10 @@ class PaymentViewSet(viewsets.ModelViewSet):
             headers = self.get_success_headers(serializer.data)
             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+
+
 @api_view(['GET'])
 @permission_classes([IsAdministrator])
-
 def payment_created_by_user(request):
     payment_list = Payment.objects.filter(created_by=request.user)
 
@@ -114,9 +116,9 @@ def payment_created_by_user(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(['POST'])
-def online_payment(request):
-    trx_id = request.data.get('trx_id')
+# @api_view(['POST'])
+def online_payment(trx_id):
+    # trx_id = request.data.get('trx_id')
     if trx_id:
         try:
             payment = Payment.objects.get(trx_id=trx_id)
@@ -142,6 +144,32 @@ def online_payment(request):
             return Response({'detail': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
     else:
         return Response({'detail': 'trx_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def inititate_payment(request):
+    data = request.data
+    if not data:
+        return Response({'detail': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+    data['created_by'] = request.user.id
+    data['mode'] = 'online'
+    data['status'] = 'hold'
+    data['paid_amount'] = 0
+    serializer = PaymentSerializer(data=data)
+    
+    if serializer.is_valid(raise_exception=True):
+        serializer.save()
+        bills = serializer.validated_data['bills']
+
+        for bill in bills:
+            if bill.paid:
+                return Response({'detail': "Paid bill is not payable"}, status=status.HTTP_406_NOT_ACCEPTABLE)
+
+        return online_payment(serializer.data.get('trx_id'))
+    else:
+        return Response({'detail': 'Invalid data', 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
 
 from  . import  _constants as constants
 
@@ -227,4 +255,37 @@ def success_url(request):
     # Default response for non-successful payments
     frontend_success_url = f"{constants.frontUrl}/?trx_id={data.get('mer_txnid')}&amount={data.get('amount')}&status=failed&detail=Invalid Payement"
     return HttpResponseRedirect(frontend_success_url)
+
+
+@api_view(['POST', 'GET'])
+def cancel_url(request):
+    if request.method == 'GET':
+        frontend_success_url = f"{constants.frontUrl}/?detail=Payment Cencelled"
+        return HttpResponseRedirect(frontend_success_url)
+    data = request.data
+    
+    if not data:
+        frontend_success_url = f"{constants.frontUrl}/?detail=Something went wrong"
+        return HttpResponseRedirect(frontend_success_url)
+    serializer = EPaymentSerializer(data=data)
+    if serializer.is_valid():
+        instance = serializer.save()
+        if data.get('pay_status') == "Failed":
+            try:
+                payment = Payment.objects.get(trx_id=data.get('mer_txnid'))
+                payment.status = 'failed'
+                payment.mode = 'online'
+                payment.paid_amount = 0
+                payment.epayment = instance
+                payment.save()
+                frontend_success_url = f"{constants.frontUrl}/?detail=Payment Failed"
+                return HttpResponseRedirect(frontend_success_url)
+            except Payment.DoesNotExist:
+                frontend_success_url = f"{constants.frontUrl}/?detail=Payment Failed"
+                return HttpResponseRedirect(frontend_success_url)
+        frontend_success_url = f"{constants.frontUrl}/?detail=Payment Cencelled"
+        return HttpResponseRedirect(frontend_success_url)
+
+
+
 

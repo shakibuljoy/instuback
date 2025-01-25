@@ -19,7 +19,7 @@ from .views import (
     migrate_student,
 )
 from base.api.views import MyTokenObtainPairView
-from users.views import user_registration
+from users.views import user_registration, student_user
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
@@ -34,6 +34,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(),name='token_refresh'),
     path('verify-user/', verify_user, name="verify-user"),
     path('register/', user_registration, name='user_register'),
+    path('student-user/', student_user, name='student_user'),
     path('',include(router.urls), name='student'),
     path('retrieve_student_image/<pk>/',student_image_view, name="retrieve_student_image"),
     path('klasses', klass_view, name="klass_view"),

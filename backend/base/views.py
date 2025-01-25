@@ -1,4 +1,5 @@
 
+from django.core.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsNotAStudent
@@ -19,7 +20,7 @@ from copy import deepcopy
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.db.models import Sum
 from users.utils import validate_institute
-
+from .mailsender import mail_sender, mass_mail_sender
 import datetime
 
 
@@ -215,33 +216,96 @@ def attendence(request, pk):
     try:
         klass = Klass.objects.get(pk=pk)
         if request.user in klass.teachers.all() or (request.user.user_type == 'administrator' and klass.institute==request.user.institute):
-            if request.method == 'POST':
-                data = deepcopy(request.data)
-                data['teacher'] = request.user.pk
-                
-                serializer = AttendenceSerializer(data=data)
 
-                if serializer.is_valid(raise_exception=True):
-                    serializer.save()
-                    today = datetime.date.today()
-                    all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
-                    all_serializer = AttendenceSerializer(all_attendence_today, many=True)
-                    return Response(all_serializer.data, status=status.HTTP_201_CREATED)
-            # Get method will response all attendence data for specific class and teacher
-            if request.method == 'GET':
+            if request.method == 'POST':
+                today = datetime.date.today()
+                dataList = request.data
+                present_mail_list = []
+                abscent_mail_list = []
+                for data in dataList:
+                    data['teacher'] = request.user.pk
+                    data['klass'] = klass.pk
+                    try:
+                        student = Student.objects.get(pk=data['student'])
+                        past_attendence = Attendence.objects.filter(student=student, date=today, klass=klass).exists()
+                        
+                        if past_attendence:
+                            return Response({'detail': 'Attendence already submitted'}, status=status.HTTP_400_BAD_REQUEST)
+                            
+                        if data['presents']:
+                            present_mail_list.append(student.email)
+                        else:
+                            abscent_mail_list.append(student.email)
+                    except Student.DoesNotExist:
+                        return Response({'detail': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
+                print(isinstance(dataList, list))
+                if isinstance(dataList, list):
+                    serializer = AttendenceSerializer(data=dataList, many=True)
+                    if serializer.is_valid(raise_exception=True):
+                        serializer.save()
+                        
+                        mass_mail_sender("Attendence",f"You have been marked as present at {str(today)}", present_mail_list)
+                        mass_mail_sender("Attendence",f"You have been marked as abscent at {str(today)}", abscent_mail_list)
+                        return Response({'detail':'Submited attendence successfully'}, status=status.HTTP_201_CREATED)
+                     
+                    return Response({'detail':'Submited attendence successfully'}, status=status.HTTP_201_CREATED)
+                else:
+                    return Response({'detail': 'Data not valid'}, status=status.HTTP_400_BAD_REQUEST)
+            elif request.method == 'GET':
                 today = datetime.date.today()
                 if request.GET.get('date'):
                     today = request.GET.get('date')
-                    print("Today", today)
                 all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
                 all_serializer = AttendenceSerializer(all_attendence_today, many=True)
                 return Response(all_serializer.data, status=status.HTTP_200_OK)
+            else:
+                return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
         else:
-            # If user is not listed in requested class teacher it will declined
             return Response({'detail': 'User not allowed to this class'}, status=status.HTTP_401_UNAUTHORIZED)
     except Klass.DoesNotExist:
-        return Response({'detail': "Class not Found!"}, status=status.HTTP_400_BAD_REQUEST)
-    return Response({'detail': "Data not valid"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'detail': "Class not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print(str(e))
+        return Response({'detail': "Something went wrong", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
+
+
+# def attendence(request, pk):
+#     try:
+#         klass = Klass.objects.get(pk=pk)
+#         if request.user in klass.teachers.all() or (request.user.user_type == 'administrator' and klass.institute==request.user.institute):
+#             if request.method == 'POST':
+#                 data = deepcopy(request.data)
+#                 data['teacher'] = request.user.pk
+                
+#                 serializer = AttendenceSerializer(data=data)
+
+#                 if serializer.is_valid(raise_exception=True):
+#                     serializer.save()
+#                     today = datetime.date.today()
+#                     all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
+#                     all_serializer = AttendenceSerializer(all_attendence_today, many=True)
+#                     return Response(all_serializer.data, status=status.HTTP_201_CREATED)
+#             # Get method will response all attendence data for specific class and teacher
+#             if request.method == 'GET':
+#                 today = datetime.date.today()
+#                 if request.GET.get('date'):
+#                     today = request.GET.get('date')
+#                     print("Today", today)
+#                 all_attendence_today = Attendence.objects.filter(date=today, klass=klass)
+#                 all_serializer = AttendenceSerializer(all_attendence_today, many=True)
+#                 return Response(all_serializer.data, status=status.HTTP_200_OK)
+#         else:
+#             # If user is not listed in requested class teacher it will declined
+#             return Response({'detail': 'User not allowed to this class'}, status=status.HTTP_401_UNAUTHORIZED)
+#     except Klass.DoesNotExist:
+#         return Response({'detail': "Class not Found!"}, status=status.HTTP_400_BAD_REQUEST)
+#     return Response({'detail': "Data not valid"}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['PATCH','GET'])
 @permission_classes([IsNotAStudent])
@@ -253,6 +317,8 @@ def editAttendece(request, pk):
                 attendence.presents = True if request.data.get('presents') == 'true' else False
                 attendence.cause = request.data['cause'] if request.data.get('cause') else ""
                 attendence.save()
+                msg = f"Your attendence has been updated and marked as {"Present" if attendence.presents else "Abscent"} at {str(attendence.date)}"
+                mail_sender("Attendence",msg, attendence.student.email)
                 serializer = AttendenceSerializer(attendence)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         

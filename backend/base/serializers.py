@@ -64,6 +64,12 @@ class AttendenceSerializer(serializers.ModelSerializer):
         read_only_fields = ['date']
 
     
+    def to_representation(self, instance):
+        represents =  super().to_representation(instance)
+        represents['student'] = StudentSerializer(instance.student).data
+        return represents
+
+    
      
 
     def validate(self,data):

@@ -1,14 +1,16 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from base.permissions import IsAdministrator
 from rest_framework import status
-from .models import CustomUser
+from base.models import Student
+from .models import CustomUser  
 from .serializers import CustomUserSerializer
 from rest_framework.exceptions import ValidationError
 from copy import deepcopy
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdministrator])
 def user_registration(request):
     if request.method == 'POST':
         data = deepcopy(request.data)
@@ -40,4 +42,22 @@ def user_registration(request):
         else:
             return Response(data="Only administrator can create any user", status=status.HTTP_401_UNAUTHORIZED) 
         return Response(data="Something went wrong",status=status.HTTP_400_BAD_REQUEST)
+    
+@api_view(['POST'])
+@permission_classes([IsAdministrator])
+def student_user(request):
+    if request.method == 'POST':
+        student_id = request.data.get('student_id')
+        try:
+            prev_user = CustomUser.objects.filter(username=student_id).exists()
+            if prev_user:
+                return Response(data="User already exists", status=status.HTTP_400_BAD_REQUEST)
+        
+            student = Student.objects.get(student_id=student_id)
+            user_creation = CustomUser.objects.create_user(username=student.student_id, password=student.student_id, user_type='student', email=student.email, institute=student.institute)
+            user_creation.save()
+            return Response(data=user_creation.username, status=status.HTTP_201_CREATED)
+        
+        except Student.DoesNotExist:
+            return Response(data="Student not found", status=status.HTTP_404_NOT_FOUND)
         
