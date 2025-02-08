@@ -1,5 +1,4 @@
 
-from typing import Iterable
 import uuid
 from django.db import models
 from users.models import CustomUser, Institute
@@ -11,6 +10,7 @@ class Klass(models.Model):
     branch = models.CharField(max_length=50, null=True, blank=True)
     teachers = models.ManyToManyField(CustomUser, related_name='teachers',blank=True)
     result_published = models.BooleanField(default=False)
+    admission_open = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name}{"-"+ self.group if self.group else ""}{"-"+self.branch if self.branch else ""}"
@@ -64,6 +64,8 @@ class Student(models.Model):
     image = models.ImageField(upload_to=folder_convention, null=False, blank=False)
     active = models.BooleanField(default=False)
     admitted = models.BooleanField(default=False)
+    account_created = models.BooleanField(default=False)
+    banned_account = models.BooleanField(default=False)
 
 
     def _generate_unique_student_id(self):
@@ -84,6 +86,8 @@ class Student(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name if self.last_name else ""} ({self.student_id})"
     
+
+
 
 class AdditionalStudentInfo(models.Model):
     def folder_convention(instance, filename):
@@ -129,6 +133,9 @@ class Attendence(models.Model):
         return f"{self.klass}-{self.student.student_id} ({self.date})"
     
 
+
+    
+
 class Subject(models.Model):
     name = models.CharField(max_length=120)
     code = models.CharField(max_length=50)
@@ -146,7 +153,7 @@ class Mark(models.Model):
     student = models.ForeignKey(Student, on_delete=models.CASCADE)
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE)
     mark = models.FloatField(blank=True, null=True)
-
+    
     class Meta:
         unique_together = ['student', 'subject']
 

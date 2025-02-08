@@ -13,7 +13,7 @@ def mail_sender(subject, message, recipient):
                 send_mail(subject, message, sender, [recipient], fail_silently=True)
                 return True
             except Exception as e:
-                pass
+                print(f"Error sending email: {str(e)}")
 
 def mass_mail_sender(subject, message, recipient_list):
     sender = 'shakibulalamj@gmail.com'

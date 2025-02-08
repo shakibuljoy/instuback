@@ -4,8 +4,9 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
 
 
+def institute_photo_upload_path(instance, filename):
+    return f'public/institute/{instance.instu_id}/{filename}'
 
-    
 # Model creation started  
 class Institute(models.Model):
     INSTITUTE_TYPE = (
@@ -30,9 +31,10 @@ class Institute(models.Model):
     name = models.CharField(max_length=150)
     eiin = models.CharField(max_length=150, verbose_name='EIIN', blank=True, null=True)
     address = models.CharField(max_length=240)
-    instititute_photo = models.ImageField(upload_to='institute/<instu_id>/', null=True, blank=True)
+    instititute_photo = models.ImageField(upload_to=institute_photo_upload_path, null=True, blank=True)
     institute_type = models.CharField(max_length=50, choices=INSTITUTE_TYPE),
     residential = models.BooleanField()
+
 
     def __str__(self):
         return self.instu_id
@@ -67,6 +69,8 @@ class CustomUserManager(BaseUserManager):
 def validate_institute_for_user_type(self):
     if self.user_type != 'developer' and not self.institute:
         raise ValidationError('Institute is required for non-developer users.')
+    if self.user_type == 'student' and (not self.student):
+        raise ValidationError('An student data must be associated with a student account')
          
 class CustomUser(AbstractUser):
     
@@ -79,6 +83,7 @@ class CustomUser(AbstractUser):
     )
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES)
     institute = models.ForeignKey(Institute, on_delete=models.CASCADE, null=True, blank=True)
+    student = models.ForeignKey('base.Student', on_delete=models.CASCADE, null=True, blank=True)
 
     profile_pic = models.ImageField(upload_to=f"profile/", verbose_name='Profile Picture', null=True, blank=True)
 

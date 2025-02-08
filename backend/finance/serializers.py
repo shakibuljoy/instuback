@@ -30,6 +30,8 @@ class BillSerializer(serializers.ModelSerializer):
                 instance.paid = False
                 instance.save()
                 represents['trx'] = ''
+            except Exception as e:
+                represents['trx'] = ''
         else:
             represents['trx'] = ''
         return represents

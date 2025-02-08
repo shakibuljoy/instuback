@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .models import (Klass, Student,
                     Attendence, AdditionalStudentInfo, Subject, Mark)
+from finance.models import Bill
 
 class AdStInfoInline(admin.TabularInline):
     model = AdditionalStudentInfo
@@ -17,7 +18,9 @@ class SubjectInline(admin.TabularInline):
     model = Subject
     extra = 1
 
-
+class BillInline(admin.TabularInline):
+    model = Bill
+    extra = 1
 
 
 
@@ -28,7 +31,7 @@ class StudentAdmin(admin.ModelAdmin):
             return qs
         
         return qs.filter(klass__institute=request.user.institute)
-    inlines = [AdStInfoInline, AttendenceInline]
+    inlines = [AdStInfoInline, AttendenceInline, BillInline]
 
 class KlassAdmin(admin.ModelAdmin):
     inlines = [SubjectInline]

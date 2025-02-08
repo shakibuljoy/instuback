@@ -8,6 +8,9 @@ from .models import CustomUser
 from .serializers import CustomUserSerializer
 from rest_framework.exceptions import ValidationError
 from copy import deepcopy
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+from base.mailsender import mail_sender
 
 @api_view(['POST'])
 @permission_classes([IsAdministrator])
@@ -49,15 +52,29 @@ def student_user(request):
     if request.method == 'POST':
         student_id = request.data.get('student_id')
         try:
-            prev_user = CustomUser.objects.filter(username=student_id).exists()
-            if prev_user:
-                return Response(data="User already exists", status=status.HTTP_400_BAD_REQUEST)
         
             student = Student.objects.get(student_id=student_id)
-            user_creation = CustomUser.objects.create_user(username=student.student_id, password=student.student_id, user_type='student', email=student.email, institute=student.institute)
+            if CustomUser.objects.filter(student=student).exists():
+                return Response({"detail": "User already exists"}, status=status.HTTP_400_BAD_REQUEST)
+            if student.active == False:
+                return Response({"detail":"Student is not active"}, status=status.HTTP_400_BAD_REQUEST)
+            if student.email == '':
+                return Response({"detial":"Email not found"}, status=status.HTTP_400_BAD_REQUEST)
+            email_associated = CustomUser.objects.filter(email=student.email).exists()
+            if email_associated:
+                return Response({"detail": "Email already associated with another user"}, status=status.HTTP_400_BAD_REQUEST)
+            user_creation = CustomUser.objects.create_user(username=student.email, password=student.student_id, user_type='student', email=student.email, institute=student.institute, student=student)
             user_creation.save()
             return Response(data=user_creation.username, status=status.HTTP_201_CREATED)
         
         except Student.DoesNotExist:
-            return Response(data="Student not found", status=status.HTTP_404_NOT_FOUND)
+            return Response({"detail":"Student not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+
+@receiver(post_save, sender=CustomUser)
+def create_student_user(sender, instance, created, **kwargs):
+    if created and instance.is_student():
+        student = instance.student
+        mail_sender('Account Created', f'Your account has been created. Your username is {instance.username} and password is {student.student_id}', student.email)
+        student.save()
         

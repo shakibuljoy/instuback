@@ -77,7 +77,7 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    'SLIDING_TOKEN_LIFETIME': timedelta(hours=1),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
@@ -122,8 +122,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('instuzilla'),
+        'USER': os.getenv('POSTGRESS_USER'),
+        'PASSWORD': os.getenv('POSTGRESS_PASSWORD'),
+        'HOST': os.getenv('POSTGRESS_ENDPOINT'),
+        'PORT': '5432',
     }
 }
 
@@ -162,12 +166,24 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 
-STATIC_URL = 'static/'
+
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_S3_REGION_NAME = "ap-south-1" 
+AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
+
+# Static files (CSS, JavaScript, images)
+# STATICFILES_STORAGE = "base.storages.S3StaticStorage"
+# STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/instuzilla-static-files/"
+AWS_CLOUD_FRONT_DOMAIN = "d2hk4gfdstb7b6.cloudfront.net"
+STATIC_URL = f"https://{AWS_CLOUD_FRONT_DOMAIN}/"
 
 
 # Media
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_URL = "media/"
+DEFAULT_FILE_STORAGE = "base.storages.S3MediaStorage"
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/instumedia/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

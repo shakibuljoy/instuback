@@ -50,12 +50,23 @@ class BillViewSet(viewsets.ModelViewSet):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdministrator])
+@permission_classes([IsAuthenticated])
 def student_bills(request, pk):
-    student = get_object_or_404(Student, pk=pk)
-    bills = Bill.objects.filter(student=student)
-    serializer = BillSerializer(bills, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    try:
+
+        if request.user.user_type == 'student':
+            student = request.user.student
+        else:
+
+            student = get_object_or_404(Student, pk=pk)
+        bills = Bill.objects.filter(student=student)
+        serializer = BillSerializer(bills, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Student.DoesNotExist:
+        return Response({'detail': "Student Not Fount"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        print("Error", str(e))
+        return Response({'detail': "Something Went Wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PaymentViewSet(viewsets.ModelViewSet):
@@ -108,12 +119,18 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 
 @api_view(['GET'])
-@permission_classes([IsAdministrator])
+@permission_classes([IsAuthenticated])
 def payment_created_by_user(request):
-    payment_list = Payment.objects.filter(created_by=request.user)
+    if request.user.is_administrator():
+        payment_list = Payment.objects.filter(created_by=request.user)
 
-    serializer = PaymentSerializer(payment_list, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = PaymentSerializer(payment_list, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    elif request.user.is_student():
+        payment_list = Payment.objects.filter(bills__student=request.user.student)
+
+        serializer = PaymentSerializer(payment_list, many=True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
 
 
 # @api_view(['POST'])
