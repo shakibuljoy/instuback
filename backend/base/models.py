@@ -1,4 +1,3 @@
-
 import uuid
 from django.db import models
 from users.models import CustomUser, Institute
@@ -13,7 +12,7 @@ class Klass(models.Model):
     admission_open = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.name}{"-"+ self.group if self.group else ""}{"-"+self.branch if self.branch else ""}"
+        return f"{self.name}{'-' + self.group if self.group else ''}{'-' + self.branch if self.branch else ''}"
 
 class AdditionalStudentField(models.Model):
     FIELD_CHOICES =(
@@ -84,7 +83,7 @@ class Student(models.Model):
 
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name if self.last_name else ""} ({self.student_id})"
+        return f"{self.first_name} {self.last_name if self.last_name else ''} ({self.student_id})"
     
 
 
@@ -134,6 +133,7 @@ class Attendence(models.Model):
     
 
 
+
     
 
 class Subject(models.Model):
@@ -160,9 +160,9 @@ class Mark(models.Model):
 
     def __str__(self):
         return f"{self.student.student_id}-{self.subject.name}"
-    
 
-    
+
+
 
 
 
