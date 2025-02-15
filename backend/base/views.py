@@ -84,7 +84,6 @@ class StudentView(viewsets.ModelViewSet):
                 headers = self.get_success_headers(serializer.data)
                 return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
             else:
-                print(serializer.errors)
                 return Response({'detail':serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'detail':'Provide valid institute id'}, status=status.HTTP_404_NOT_FOUND)
@@ -178,9 +177,12 @@ def klass_view(request):
             klasses = Klass.objects.filter(institute=institute)
         elif(request.user.is_authenticated):
             user = request.user
-            if user.user_type == 'developer':
+            if user.is_developer():
                 klasses = Klass.objects.all()
-            
+            elif user.is_teacher():
+                klasses = Klass.objects.filter(teachers=user)
+            elif user.is_administrator():
+                klasses = Klass.objects.filter(institute=user.institute)
         serializers = KlassSerializer(klasses, many=True)
         return Response(serializers.data, status=status.HTTP_200_OK)
     
@@ -200,8 +202,6 @@ def attendence(request, pk):
             if request.method == 'POST':
                 today = datetime.date.today()
                 dataList = request.data
-                present_mail_list = []
-                abscent_mail_list = []
                 for data in dataList:
                     data['teacher'] = request.user.pk
                     data['klass'] = klass.pk
@@ -212,10 +212,6 @@ def attendence(request, pk):
                         if past_attendence:
                             return Response({'detail': 'Attendence already submitted'}, status=status.HTTP_400_BAD_REQUEST)
                             
-                        if data['presents']:
-                            present_mail_list.append(student.email)
-                        else:
-                            abscent_mail_list.append(student.email)
                     except Student.DoesNotExist:
                         return Response({'detail': 'Student not found'}, status=status.HTTP_404_NOT_FOUND)
            
@@ -245,7 +241,6 @@ def attendence(request, pk):
     except Klass.DoesNotExist:
         return Response({'detail': "Class not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(str(e))
         return Response({'detail': "Something went wrong", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -296,7 +291,6 @@ def get_student_attendence(request, pk):
                     date__year=year
                 )
                 serializer = AttendenceSerializer(all_attendence, many=True)
-                print(serializer.data)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             else:
                 return Response({'detail': 'Unauthorized request'}, status=status.HTTP_401_UNAUTHORIZED)
@@ -374,7 +368,6 @@ def submit_marks(request):
         return Response({'detail': 'Student not found!'}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
-        print(f"Unexpected error: {e}")  # Debug print
         return Response({'detail': "Something went wrong", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
