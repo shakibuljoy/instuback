@@ -1,10 +1,17 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+baseUrl= os.getenv('BASE_URL')
+
 sandBoxUrl = 'https://sandbox.aamarpay.com/index.php'
 verificationSandBoxUrl = 'https://sandbox.aamarpay.com/api/v1/trxcheck/request.php'
 verificationProductionUrl = 'https://secure.aamarpay.com/api/v1/trxcheck/request.php'
 productionUrl = 'https://secure.aamarpay.com/index.php'
-succesUrl = 'http://127.0.0.1:8000/finance/success-payment/'
-failUrl = 'http://127.0.0.1:8000/finance/cancel-payment/'
-cancelUrl = 'http://127.0.0.1:8000/finance/cancel-payment/'
+succesUrl = baseUrl+'/finance/success-payment/'
+failUrl = baseUrl+'/finance/cancel-payment/'
+cancelUrl = baseUrl+'/finance/cancel-payment/'
 signature = 'dbb74894e82415a2f7ff0ec3a97e4183'
 storeID = 'aamarpaytest'
 sandboxReturnUrl = 'https://sandbox.aamarpay.com'
